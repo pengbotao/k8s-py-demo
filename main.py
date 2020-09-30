@@ -1,21 +1,38 @@
 import time
-from flask import Flask
+import json
+import socket
+from flask import Flask, request
 
 app = Flask(__name__)
 
+def get_host_ip(): 
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+    finally:
+        s.close()
+    return ip
 
 @app.route('/')
-def hello_world():
-    return 'Hello World!'
+def index():
+    hostname = socket.gethostname()
+    if request.environ.get('HTTP_X_FORWARDED_FOR') is not None:
+        ip = request.environ['HTTP_X_FORWARDED_FOR']
+    else:
+        ip = request.environ['REMOTE_ADDR']
+    return json.dumps({
+        "ClientIP": ip,
+        "Host": hostname,
+        "ServerIP": get_host_ip(),
+        "Time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+        "Version": "latest"
+    })
 
-
-@app.route('/sleep')
-def sleep():
-    time.sleep(3)
-    return "Sleep 3 sec.."
 
 if __name__ == '__main__':
     app.run(
         host = app.config.get("HOST", "127.0.0.1"),
-        port = app.config.get("PORT", 5000)
+        port = app.config.get("PORT", 5000),
+        debug = True
     )
